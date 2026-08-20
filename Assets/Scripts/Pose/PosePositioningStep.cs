@@ -27,7 +27,12 @@ public sealed class PosePositioningStep : MonoBehaviour
 
     private static readonly int[] RequiredLandmarks =
     {
-        0, 11, 12, 23, 24, 25, 26, 27, 28
+        0, 11, 12, 23, 24
+    };
+
+    private static readonly int[] LowerBodyLandmarks =
+    {
+        25, 26, 27, 28
     };
 
     private static readonly int[] StabilityLandmarks =
@@ -51,7 +56,8 @@ public sealed class PosePositioningStep : MonoBehaviour
     [SerializeField] private TextAsset poseModel;
     [SerializeField] private RawImage preview;
     [SerializeField] private string preferredCameraName;
-    [SerializeField] private bool mirrorPreview = true;
+    [Tooltip("Keep disabled to match the original web app and reference-pose coordinates.")]
+    [SerializeField] private bool mirrorPreview = false;
     [SerializeField, Min(320)] private int requestedWidth = 1280;
     [SerializeField, Min(240)] private int requestedHeight = 720;
     [SerializeField, Range(1, 60)] private int requestedFps = 30;
@@ -68,7 +74,8 @@ public sealed class PosePositioningStep : MonoBehaviour
     private float minTrackingConfidence = 0.3f;
 
     [Header("Correct position")]
-    [SerializeField, Range(0f, 1f)] private float minVisibility = 0.5f;
+    [SerializeField, Range(0f, 1f)] private float minVisibility = 0.3f;
+    [SerializeField, Range(0f, 1f)] private float minLowerBodyVisibility = 0.15f;
     [SerializeField, Range(0f, 0.5f)] private float horizontalCenterTolerance = 0.12f;
     [SerializeField, Range(0.2f, 1f)] private float minimumBodyHeight = 0.52f;
     [SerializeField, Range(0.2f, 1f)] private float maximumBodyHeight = 0.92f;
@@ -332,7 +339,15 @@ public sealed class PosePositioningStep : MonoBehaviour
         {
             if ((landmarks[index].visibility ?? 0f) < minVisibility)
             {
-                return "Hãy lùi lại để camera thấy rõ toàn thân.";
+                return "Hãy đứng thẳng và nhìn về phía camera.";
+            }
+        }
+
+        foreach (int index in LowerBodyLandmarks)
+        {
+            if ((landmarks[index].visibility ?? 0f) < minLowerBodyVisibility)
+            {
+                return "Camera chưa thấy rõ chân. Hãy chỉnh vị trí để lộ cả hai chân.";
             }
         }
 

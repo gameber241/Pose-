@@ -319,10 +319,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 121440455}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 500, y: 500}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1424361063
 GameObject:
@@ -446,40 +446,6 @@ MonoBehaviour:
   minLandmarkVisibility: 0.4
   jointRadius: 7
   boneThickness: 4
---- !u!114 &1597392648
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1597392645}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bfa4e09c7f6e4d20b3e44e105ba1328f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  poseModel: {fileID: 4900000, guid: c8c4589b8ba21435286fba38200e75ee, type: 3}
-  preview: {fileID: 1089609545}
-  preferredCameraName: 
-  mirrorPreview: 1
-  requestedWidth: 1280
-  requestedHeight: 720
-  requestedFps: 30
-  detectionInterval: 0.12
-  minPoseDetectionConfidence: 0.3
-  minPosePresenceConfidence: 0.5
-  minTrackingConfidence: 0.3
-  minVisibility: 0.5
-  horizontalCenterTolerance: 0.12
-  minimumBodyHeight: 0.52
-  maximumBodyHeight: 0.92
-  maximumMovement: 0.025
-  requiredHoldSeconds: 2
-  statusText: {fileID: 0}
-  drawDebugOverlay: 1
-  onPositionConfirmed:
-    m_PersistentCalls:
-      m_Calls: []
 --- !u!4 &1597392647
 Transform:
   m_ObjectHideFlags: 0
@@ -495,6 +461,41 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1597392648
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1597392645}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bfa4e09c7f6e4d20b3e44e105ba1328f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  poseModel: {fileID: 4900000, guid: c8c4589b8ba21435286fba38200e75ee, type: 3}
+  preview: {fileID: 1089609545}
+  preferredCameraName: 
+  mirrorPreview: 0
+  requestedWidth: 1280
+  requestedHeight: 720
+  requestedFps: 30
+  detectionInterval: 0.12
+  minPoseDetectionConfidence: 0.3
+  minPosePresenceConfidence: 0.5
+  minTrackingConfidence: 0.3
+  minVisibility: 0.3
+  minLowerBodyVisibility: 0.15
+  horizontalCenterTolerance: 0.12
+  minimumBodyHeight: 0.52
+  maximumBodyHeight: 0.92
+  maximumMovement: 0.025
+  requiredHoldSeconds: 2
+  statusText: {fileID: 0}
+  drawDebugOverlay: 1
+  onPositionConfirmed:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &1884225562
 GameObject:
   m_ObjectHideFlags: 0
