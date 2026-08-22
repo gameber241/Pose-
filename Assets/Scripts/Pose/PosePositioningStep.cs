@@ -15,6 +15,13 @@ using Rect = UnityEngine.Rect;
 using UnityEngine.Android;
 #endif
 
+[Serializable]
+public sealed class PoseChallengeEntry
+{
+    public Texture2D image;
+    public TextAsset referencePose;
+}
+
 /// <summary>
 /// Challenge step 1: starts a live webcam feed, detects one pose on CPU and
 /// confirms only after the player's full body is centered and held still.
@@ -24,6 +31,16 @@ using UnityEngine.Android;
 public sealed class PosePositioningStep : MonoBehaviour
 {
     private const int LandmarkCount = 33;
+
+    private enum ChallengePhase
+    {
+        Positioning,
+        RaiseHands,
+        ShowingStart,
+        Countdown,
+        CaptureFlash,
+        Finished
+    }
 
     private static readonly int[] RequiredLandmarks =
     {
@@ -58,6 +75,8 @@ public sealed class PosePositioningStep : MonoBehaviour
     [SerializeField] private string preferredCameraName;
     [Tooltip("Keep disabled to match the original web app and reference-pose coordinates.")]
     [SerializeField] private bool mirrorPreview = false;
+    [Tooltip("Giữ đúng tỷ lệ camera và hiển thị toàn bộ khung hình, không kéo giãn người.")]
+    [SerializeField] private bool fitWholeCameraFrame = true;
     [SerializeField, Min(320)] private int requestedWidth = 1280;
     [SerializeField, Min(240)] private int requestedHeight = 720;
     [SerializeField, Range(1, 60)] private int requestedFps = 30;
@@ -85,9 +104,29 @@ public sealed class PosePositioningStep : MonoBehaviour
     [Header("Optional UI")]
     [SerializeField] private Text statusText;
     [SerializeField] private bool drawDebugOverlay = true;
+    [SerializeField] private string challengeTitle = "POSE CHALLENGE";
+    [SerializeField] private string positioningInstruction =
+        "Vui lòng di chuyển\nvào đúng vị trí";
+    [SerializeField, Min(0.2f)] private float raiseHandsHoldSeconds = 0.7f;
+    [SerializeField, Min(0.2f)] private float startMessageSeconds = 1.2f;
+    [SerializeField, Range(1, 10)] private int countdownSeconds = 5;
+    [SerializeField, Min(0.2f)] private float captureMessageSeconds = 0.8f;
+    [Header("Pose sequence")]
+    [SerializeField] private List<PoseChallengeEntry> challengePoses =
+        new List<PoseChallengeEntry>();
+    [SerializeField, Range(0, 100)] private int passingScore = 70;
+
+    [Header("Legacy single pose")]
+    [SerializeField] private Texture2D challengePoseImage;
+    [SerializeField] private TextAsset challengeReferencePose;
     [SerializeField] private UnityEvent onPositionConfirmed;
+    [SerializeField] private UnityEvent onChallengeStarted;
+    [SerializeField] private UnityEvent onPoseCaptured;
 
     private readonly List<NormalizedLandmark> latestLandmarks =
+        new List<NormalizedLandmark>(LandmarkCount);
+
+    private readonly List<NormalizedLandmark> capturedLandmarks =
         new List<NormalizedLandmark>(LandmarkCount);
 
     private readonly Vector2[] previousPositions =
@@ -96,15 +135,31 @@ public sealed class PosePositioningStep : MonoBehaviour
     private readonly Vector3[] previewCorners = new Vector3[4];
 
     private WebCamTexture webCamTexture;
+    private AspectRatioFitter previewAspectFitter;
     private PoseLandmarker poseLandmarker;
     private TextureFrame textureFrame;
     private Coroutine detectionCoroutine;
     private bool hasPreviousPose;
     private bool isInitializing;
     private float holdTimer;
+    private float raiseHandsTimer;
+    private float startMessageUntil;
+    private float countdownEndsAt;
+    private float captureMessageUntil;
+    private int currentPoseIndex;
+    private int completedPoseCount;
+    private int successfulPoseCount;
+    private ChallengePhase challengePhase = ChallengePhase.Positioning;
     private string statusMessage = "Đang khởi động camera...";
 
     public IReadOnlyList<NormalizedLandmark> LatestLandmarks => latestLandmarks;
+    public IReadOnlyList<NormalizedLandmark> CapturedLandmarks => capturedLandmarks;
+    public PoseCompareResult LastCompareResult { get; private set; }
+    public int SuccessfulPoseCount => successfulPoseCount;
+    public int CompletedPoseCount => completedPoseCount;
+    public int TotalPoseCount => challengePoses != null && challengePoses.Count > 0
+        ? challengePoses.Count
+        : challengePoseImage != null && challengeReferencePose != null ? 1 : 0;
     public bool IsPositionConfirmed { get; private set; }
     public float HoldProgress => requiredHoldSeconds <= 0f
         ? 1f
@@ -121,8 +176,15 @@ public sealed class PosePositioningStep : MonoBehaviour
         StopDetection();
         IsPositionConfirmed = false;
         holdTimer = 0f;
+        raiseHandsTimer = 0f;
+        challengePhase = ChallengePhase.Positioning;
         hasPreviousPose = false;
         latestLandmarks.Clear();
+        capturedLandmarks.Clear();
+        LastCompareResult = null;
+        currentPoseIndex = 0;
+        completedPoseCount = 0;
+        successfulPoseCount = 0;
         detectionCoroutine = StartCoroutine(InitializeAndRun());
     }
 
@@ -190,6 +252,7 @@ public sealed class PosePositioningStep : MonoBehaviour
         preview.uvRect = mirrorPreview
             ? new Rect(1f, 0f, -1f, 1f)
             : new Rect(0f, 0f, 1f, 1f);
+        ConfigurePreviewAspectRatio();
 
         try
         {
@@ -229,6 +292,31 @@ public sealed class PosePositioningStep : MonoBehaviour
         detectionCoroutine = StartCoroutine(DetectionLoop());
     }
 
+    private void ConfigurePreviewAspectRatio()
+    {
+        if (preview == null || webCamTexture == null ||
+            webCamTexture.width <= 16 || webCamTexture.height <= 16)
+        {
+            return;
+        }
+
+        previewAspectFitter = preview.GetComponent<AspectRatioFitter>();
+        if (previewAspectFitter == null)
+        {
+            previewAspectFitter = preview.gameObject.AddComponent<AspectRatioFitter>();
+        }
+
+        previewAspectFitter.enabled = fitWholeCameraFrame;
+        if (!fitWholeCameraFrame)
+        {
+            return;
+        }
+
+        previewAspectFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+        previewAspectFitter.aspectRatio =
+            (float)webCamTexture.width / webCamTexture.height;
+    }
+
     private IEnumerator DetectionLoop()
     {
         var waitForEndOfFrame = new WaitForEndOfFrame();
@@ -237,6 +325,8 @@ public sealed class PosePositioningStep : MonoBehaviour
         while (enabled && webCamTexture != null && webCamTexture.isPlaying)
         {
             yield return waitForEndOfFrame;
+
+            UpdatePoseSequencePhase();
 
             if (!webCamTexture.didUpdateThisFrame ||
                 Time.unscaledTime < nextDetectionTime)
@@ -251,7 +341,10 @@ public sealed class PosePositioningStep : MonoBehaviour
                 textureFrame.ReadTextureOnCPU(
                     webCamTexture,
                     flipHorizontally: mirrorPreview,
-                    flipVertically: webCamTexture.videoVerticallyMirrored
+                    // Unity textures are bottom-up, while MediaPipe expects
+                    // top-down pixels. A camera already reported as vertically
+                    // mirrored has applied that flip, so only flip otherwise.
+                    flipVertically: !webCamTexture.videoVerticallyMirrored
                 );
 
                 using var mediaPipeImage = textureFrame.BuildCPUImage();
@@ -298,6 +391,7 @@ public sealed class PosePositioningStep : MonoBehaviour
 
         if (IsPositionConfirmed)
         {
+            ProcessRaiseHandsStep(detected);
             return;
         }
 
@@ -328,9 +422,49 @@ public sealed class PosePositioningStep : MonoBehaviour
 
         IsPositionConfirmed = true;
         holdTimer = requiredHoldSeconds;
-        SetStatus("Đã vào đúng vị trí!");
+        challengePhase = ChallengePhase.RaiseHands;
+        raiseHandsTimer = 0f;
+        SetStatus("Giơ hai tay lên để bắt đầu chơi!");
         Debug.Log("BƯỚC 1 HOÀN TẤT: Người chơi đã vào đúng vị trí.", this);
         onPositionConfirmed?.Invoke();
+    }
+
+    private void ProcessRaiseHandsStep(
+        IReadOnlyList<NormalizedLandmark> landmarks)
+    {
+        if (challengePhase != ChallengePhase.RaiseHands)
+        {
+            return;
+        }
+
+        NormalizedLandmark leftWrist = landmarks[15];
+        NormalizedLandmark rightWrist = landmarks[16];
+        bool wristsVisible =
+            (leftWrist.visibility ?? 0f) >= minVisibility &&
+            (rightWrist.visibility ?? 0f) >= minVisibility;
+        float headY = landmarks[0].y;
+        bool bothHandsRaised = wristsVisible &&
+            leftWrist.y < headY &&
+            rightWrist.y < headY;
+
+        if (!bothHandsRaised)
+        {
+            raiseHandsTimer = 0f;
+            SetStatus("Giơ hai tay lên cao để bắt đầu chơi!");
+            return;
+        }
+
+        raiseHandsTimer += detectionInterval;
+        SetStatus("Đã nhận diện hai tay!");
+        if (raiseHandsTimer < raiseHandsHoldSeconds)
+        {
+            return;
+        }
+
+        challengePhase = ChallengePhase.ShowingStart;
+        startMessageUntil = Time.unscaledTime + startMessageSeconds;
+        SetStatus("BẮT ĐẦU!!!");
+        Debug.Log("BƯỚC 2 HOÀN TẤT: Đã nhận diện động tác giơ hai tay.", this);
     }
 
     private string EvaluatePosition(IReadOnlyList<NormalizedLandmark> landmarks)
@@ -515,6 +649,9 @@ public sealed class PosePositioningStep : MonoBehaviour
         );
         DrawRectBorder(guideRect, 3f, guideColor);
 
+        DrawSequenceCopy(feedRect);
+        DrawChallengePoseImage(feedRect);
+
         if (latestLandmarks.Count >= LandmarkCount)
         {
             DrawSkeleton(feedRect);
@@ -559,6 +696,372 @@ public sealed class PosePositioningStep : MonoBehaviour
             );
             GUI.color = Color.white;
         }
+    }
+
+    private void UpdatePoseSequencePhase()
+    {
+        if (challengePhase == ChallengePhase.ShowingStart &&
+            Time.unscaledTime >= startMessageUntil)
+        {
+            if (!TryApplyChallenge(0))
+            {
+                challengePhase = ChallengePhase.Finished;
+                SetStatus("Chưa cấu hình danh sách pose.");
+                return;
+            }
+
+            challengePhase = ChallengePhase.Countdown;
+            countdownEndsAt = Time.unscaledTime + countdownSeconds;
+            SetStatus(GetPoseCountdownStatus());
+            onChallengeStarted?.Invoke();
+            return;
+        }
+
+        if (challengePhase == ChallengePhase.Countdown &&
+            Time.unscaledTime >= countdownEndsAt)
+        {
+            CaptureSequencePose();
+            return;
+        }
+
+        if (challengePhase != ChallengePhase.CaptureFlash ||
+            Time.unscaledTime < captureMessageUntil)
+        {
+            return;
+        }
+
+        if (completedPoseCount >= TotalPoseCount)
+        {
+            challengePhase = ChallengePhase.Finished;
+            SetStatus($"KẾT QUẢ: {successfulPoseCount} / {TotalPoseCount}");
+            return;
+        }
+
+        currentPoseIndex++;
+        if (!TryApplyChallenge(currentPoseIndex))
+        {
+            challengePhase = ChallengePhase.Finished;
+            SetStatus($"KẾT QUẢ: {successfulPoseCount} / {TotalPoseCount}");
+            return;
+        }
+
+        challengePhase = ChallengePhase.Countdown;
+        countdownEndsAt = Time.unscaledTime + countdownSeconds;
+        SetStatus(GetPoseCountdownStatus());
+    }
+
+    private void CaptureSequencePose()
+    {
+        capturedLandmarks.Clear();
+        LastCompareResult = null;
+
+        if (latestLandmarks.Count >= LandmarkCount)
+        {
+            capturedLandmarks.AddRange(latestLandmarks);
+            if (challengeReferencePose != null)
+            {
+                LastCompareResult = PoseComparer.Compare(
+                    challengeReferencePose,
+                    capturedLandmarks);
+            }
+        }
+
+        int score = LastCompareResult?.score ?? 0;
+        bool passed = LastCompareResult != null && score >= passingScore;
+        completedPoseCount++;
+        if (passed)
+        {
+            successfulPoseCount++;
+        }
+
+        challengePhase = ChallengePhase.CaptureFlash;
+        captureMessageUntil = Time.unscaledTime + captureMessageSeconds;
+        string detail = latestLandmarks.Count < LandmarkCount
+            ? "Không thấy đủ toàn thân"
+            : $"{score}/100";
+        SetStatus(
+            $"Pose {completedPoseCount}/{TotalPoseCount}: {detail} - " +
+            (passed ? "ĐẠT +1" : "KHÔNG ĐẠT"));
+
+        Debug.Log(
+            $"POSE {completedPoseCount}/{TotalPoseCount}: {score}/100, " +
+            $"tổng đạt {successfulPoseCount}.",
+            this);
+        onPoseCaptured?.Invoke();
+    }
+
+    private bool TryApplyChallenge(int index)
+    {
+        if (challengePoses != null && challengePoses.Count > 0)
+        {
+            if (index < 0 || index >= challengePoses.Count)
+            {
+                return false;
+            }
+
+            PoseChallengeEntry entry = challengePoses[index];
+            if (entry == null || entry.image == null || entry.referencePose == null)
+            {
+                Debug.LogError($"Pose #{index + 1} thiếu Image hoặc Reference Pose.", this);
+                return false;
+            }
+
+            challengePoseImage = entry.image;
+            challengeReferencePose = entry.referencePose;
+            currentPoseIndex = index;
+            return true;
+        }
+
+        currentPoseIndex = 0;
+        return index == 0 &&
+            challengePoseImage != null &&
+            challengeReferencePose != null;
+    }
+
+    private string GetPoseCountdownStatus()
+    {
+        return $"Pose {currentPoseIndex + 1}/{TotalPoseCount} - Tạo dáng!";
+    }
+
+    private void UpdateTimedChallengePhase()
+    {
+        if (challengePhase == ChallengePhase.ShowingStart &&
+            Time.unscaledTime >= startMessageUntil)
+        {
+            challengePhase = ChallengePhase.Countdown;
+            countdownEndsAt = Time.unscaledTime + countdownSeconds;
+            SetStatus("Chuẩn bị tạo dáng!");
+            onChallengeStarted?.Invoke();
+            return;
+        }
+
+        if (challengePhase == ChallengePhase.Countdown &&
+            Time.unscaledTime >= countdownEndsAt)
+        {
+            CaptureCurrentPose();
+            return;
+        }
+
+        if (challengePhase == ChallengePhase.CaptureFlash &&
+            Time.unscaledTime >= captureMessageUntil)
+        {
+            challengePhase = ChallengePhase.Finished;
+            SetStatus(LastCompareResult == null
+                ? "Đã chụp pose!"
+                : $"Điểm: {LastCompareResult.score}/100 - {LastCompareResult.grade}");
+        }
+    }
+
+    private void CaptureCurrentPose()
+    {
+        capturedLandmarks.Clear();
+        if (latestLandmarks.Count < LandmarkCount)
+        {
+            challengePhase = ChallengePhase.Finished;
+            SetStatus("Không thể chụp: chưa nhận diện đủ toàn thân.");
+            return;
+        }
+
+        capturedLandmarks.AddRange(latestLandmarks);
+        LastCompareResult = challengeReferencePose == null
+            ? null
+            : PoseComparer.Compare(challengeReferencePose, capturedLandmarks);
+
+        challengePhase = ChallengePhase.CaptureFlash;
+        captureMessageUntil = Time.unscaledTime + captureMessageSeconds;
+        SetStatus("*TÁCH*");
+        Debug.Log("ĐÃ CHỤP POSE: Lưu 33 landmark tại cuối đếm ngược.", this);
+        onPoseCaptured?.Invoke();
+    }
+
+    private void DrawSequenceCopy(Rect feedRect)
+    {
+        float titleWidth = Mathf.Min(feedRect.width * 0.88f, 760f);
+        var titleRect = new Rect(
+            feedRect.center.x - titleWidth * 0.5f,
+            feedRect.y + feedRect.height * 0.08f,
+            titleWidth,
+            Mathf.Max(52f, feedRect.height * 0.12f));
+
+        var titleStyle = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = Mathf.Clamp(Screen.height / 18, 30, 64),
+            fontStyle = FontStyle.Bold
+        };
+        titleStyle.normal.textColor = Color.white;
+        string title = challengePhase == ChallengePhase.Countdown ||
+            challengePhase == ChallengePhase.CaptureFlash
+            ? $"{challengeTitle}  {currentPoseIndex + 1}/{TotalPoseCount}"
+            : challengeTitle;
+        DrawOutlinedLabel(titleRect, title, titleStyle);
+
+        string instruction;
+        switch (challengePhase)
+        {
+            case ChallengePhase.RaiseHands:
+                instruction = "Giơ hai tay lên để bắt đầu";
+                break;
+            case ChallengePhase.ShowingStart:
+                instruction = "BẮT ĐẦU!";
+                break;
+            case ChallengePhase.Countdown:
+                instruction = Mathf.Max(
+                    1,
+                    Mathf.CeilToInt(countdownEndsAt - Time.unscaledTime)
+                ).ToString();
+                break;
+            case ChallengePhase.CaptureFlash:
+                int score = LastCompareResult?.score ?? 0;
+                instruction = score >= passingScore
+                    ? $"{score} ĐIỂM - ĐẠT +1"
+                    : $"{score} ĐIỂM - KHÔNG ĐẠT";
+                break;
+            case ChallengePhase.Finished:
+                instruction = $"KẾT QUẢ\n{successfulPoseCount} / {TotalPoseCount}";
+                break;
+            default:
+                instruction = positioningInstruction;
+                break;
+        }
+
+        var instructionRect = new Rect(
+            feedRect.center.x - titleWidth * 0.5f,
+            titleRect.yMax + 4f,
+            titleWidth,
+            Mathf.Max(70f, feedRect.height * 0.14f));
+        var instructionStyle = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = challengePhase == ChallengePhase.Countdown
+                ? Mathf.Clamp(Screen.height / 8, 72, 150)
+                : Mathf.Clamp(Screen.height / 24, 24, 52),
+            fontStyle = FontStyle.Bold,
+            wordWrap = true
+        };
+        instructionStyle.normal.textColor =
+            challengePhase == ChallengePhase.ShowingStart ||
+            challengePhase == ChallengePhase.CaptureFlash
+                ? new Color(1f, 0.86f, 0.12f, 1f)
+                : Color.white;
+        DrawOutlinedLabel(instructionRect, instruction, instructionStyle);
+    }
+
+    private void DrawStepOneCopy(Rect feedRect)
+    {
+        float titleWidth = Mathf.Min(feedRect.width * 0.88f, 760f);
+        var titleRect = new Rect(
+            feedRect.center.x - titleWidth * 0.5f,
+            feedRect.y + feedRect.height * 0.08f,
+            titleWidth,
+            Mathf.Max(52f, feedRect.height * 0.12f)
+        );
+
+        var titleStyle = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = Mathf.Clamp(Screen.height / 18, 30, 64),
+            fontStyle = FontStyle.Bold
+        };
+        titleStyle.normal.textColor = Color.white;
+        DrawOutlinedLabel(titleRect, challengeTitle, titleStyle);
+
+        string instruction;
+        switch (challengePhase)
+        {
+            case ChallengePhase.RaiseHands:
+                instruction = "Giơ tay lên thành hình chữ V\nđể bắt đầu chơi";
+                break;
+            case ChallengePhase.ShowingStart:
+                instruction = "BẮT ĐẦU!!!";
+                break;
+            case ChallengePhase.Countdown:
+                instruction = Mathf.Max(
+                    1,
+                    Mathf.CeilToInt(countdownEndsAt - Time.unscaledTime)
+                ).ToString();
+                break;
+            case ChallengePhase.CaptureFlash:
+                instruction = "*TÁCH*";
+                break;
+            case ChallengePhase.Finished:
+                instruction = LastCompareResult == null
+                    ? "ĐÃ CHỤP!"
+                    : $"{LastCompareResult.score} ĐIỂM";
+                break;
+            default:
+                instruction = positioningInstruction;
+                break;
+        }
+        var instructionRect = new Rect(
+            feedRect.center.x - titleWidth * 0.5f,
+            titleRect.yMax + 4f,
+            titleWidth,
+            Mathf.Max(70f, feedRect.height * 0.14f)
+        );
+        var instructionStyle = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = challengePhase == ChallengePhase.Countdown
+                ? Mathf.Clamp(Screen.height / 8, 72, 150)
+                : Mathf.Clamp(Screen.height / 24, 24, 52),
+            fontStyle = FontStyle.Bold,
+            wordWrap = true
+        };
+        instructionStyle.normal.textColor =
+            challengePhase == ChallengePhase.ShowingStart ||
+            challengePhase == ChallengePhase.CaptureFlash
+                ? new Color(1f, 0.86f, 0.12f, 1f)
+                : Color.white;
+        DrawOutlinedLabel(instructionRect, instruction, instructionStyle);
+    }
+
+    private void DrawChallengePoseImage(Rect feedRect)
+    {
+        if (challengePoseImage == null ||
+            (challengePhase != ChallengePhase.Countdown &&
+             challengePhase != ChallengePhase.CaptureFlash &&
+             challengePhase != ChallengePhase.Finished))
+        {
+            return;
+        }
+
+        float width = Mathf.Min(feedRect.width * 0.24f, 220f);
+        float aspect = (float)challengePoseImage.height / challengePoseImage.width;
+        float height = width * aspect;
+        var imageRect = new Rect(
+            feedRect.xMax - width - feedRect.width * 0.035f,
+            feedRect.y + feedRect.height * 0.035f,
+            width,
+            height
+        );
+
+        GUI.color = new Color(1f, 0.75f, 0.08f, 1f);
+        GUI.DrawTexture(
+            new Rect(imageRect.x - 4f, imageRect.y - 4f,
+                imageRect.width + 8f, imageRect.height + 8f),
+            Texture2D.whiteTexture
+        );
+        GUI.color = Color.white;
+        GUI.DrawTexture(imageRect, challengePoseImage, ScaleMode.ScaleToFit);
+    }
+
+    private static void DrawOutlinedLabel(
+        Rect rect,
+        string text,
+        GUIStyle style)
+    {
+        Color textColor = style.normal.textColor;
+        style.normal.textColor = new Color(0f, 0f, 0f, 0.9f);
+
+        const float outline = 2f;
+        GUI.Label(new Rect(rect.x - outline, rect.y, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x + outline, rect.y, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x, rect.y - outline, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x, rect.y + outline, rect.width, rect.height), text, style);
+
+        style.normal.textColor = textColor;
+        GUI.Label(rect, text, style);
     }
 
     private void DrawSkeleton(Rect feedRect)

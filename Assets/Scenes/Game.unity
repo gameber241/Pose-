@@ -151,6 +151,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1089609547}
+  - {fileID: 185830142}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -216,11 +217,148 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
+--- !u!1 &185830141
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 185830142}
+  - component: {fileID: 185830144}
+  - component: {fileID: 185830143}
+  m_Layer: 5
+  m_Name: Text (TMP)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &185830142
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 185830141}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 121440455}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: -525}
+  m_SizeDelta: {x: 717.34, y: 419.68}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &185830143
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 185830141}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: "\xE2ffwewfeewf"
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4278190080
+  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: -1183493901
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 70
+  m_fontSizeBase: 70
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_characterHorizontalScale: 1
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_TextWrappingMode: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 0
+  m_ActiveFontFeatures: 6e72656b
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_EmojiFallbackSupport: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!222 &185830144
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 185830141}
+  m_CullTransparentMesh: 1
 --- !u!1 &741029864
 GameObject:
   m_ObjectHideFlags: 0
@@ -319,10 +457,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 121440455}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 1080, y: 1920}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1424361063
 GameObject:
@@ -433,10 +571,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c65bfdc2e2a8641bda1f501cc68dd9e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sourceImage: {fileID: 2800000, guid: ccaa73da8a8114c8db7c7b21fb359a63, type: 3}
-  poseModel: {fileID: 4900000, guid: c8c4589b8ba21435286fba38200e75ee, type: 3}
+  sourceImage: {fileID: 2800000, guid: b89d4aa2146f6b2468013447c688aff8, type: 3}
+  poseModel: {fileID: 4900000, guid: 9fb6b96bb7aa4305a5d03177507d74a2, type: 3}
   preview: {fileID: 1089609545}
-  referencePose: {fileID: 4900000, guid: 21d4664b1558a410e8a4ddc57ad65b13, type: 3}
+  referencePose: {fileID: 4900000, guid: e0af4df02a767f641a5d70e4c42f0548, type: 3}
   poseName: Pose_01
   savePoseAutomatically: 0
   minPoseDetectionConfidence: 0.5
@@ -473,10 +611,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfa4e09c7f6e4d20b3e44e105ba1328f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  poseModel: {fileID: 4900000, guid: c8c4589b8ba21435286fba38200e75ee, type: 3}
+  poseModel: {fileID: 4900000, guid: 9fb6b96bb7aa4305a5d03177507d74a2, type: 3}
   preview: {fileID: 1089609545}
   preferredCameraName: 
   mirrorPreview: 0
+  fitWholeCameraFrame: 1
   requestedWidth: 1280
   requestedHeight: 720
   requestedFps: 30
@@ -493,7 +632,44 @@ MonoBehaviour:
   requiredHoldSeconds: 2
   statusText: {fileID: 0}
   drawDebugOverlay: 1
+  challengeTitle: POSE CHALLENGE
+  positioningInstruction: "Vui l\xF2ng di chuy\u1EC3n\nv\xE0o \u0111\xFAng v\u1ECB
+    tr\xED"
+  raiseHandsHoldSeconds: 0.7
+  startMessageSeconds: 1.2
+  countdownSeconds: 5
+  captureMessageSeconds: 0.8
+  challengePoses:
+  - image: {fileID: 2800000, guid: b89d4aa2146f6b2468013447c688aff8, type: 3}
+    referencePose: {fileID: 4900000, guid: e0af4df02a767f641a5d70e4c42f0548, type: 3}
+  - image: {fileID: 2800000, guid: 3ffdd9fb63dcce8489330eb4baee2fd1, type: 3}
+    referencePose: {fileID: 4900000, guid: 4554e98465d91f643acc7f87579b3870, type: 3}
+  - image: {fileID: 2800000, guid: 6b22d4d224a1ebb48a06f4b7c2b9b7ee, type: 3}
+    referencePose: {fileID: 4900000, guid: d10392ec733b9d24b88362539a010051, type: 3}
+  - image: {fileID: 2800000, guid: 8080976f4b8a9dd45b1fcf1d4b547cbf, type: 3}
+    referencePose: {fileID: 4900000, guid: d3a32ca030ecdd048b360b848ac69c8b, type: 3}
+  - image: {fileID: 2800000, guid: a95e4d986625d6c4b8d95287afffd242, type: 3}
+    referencePose: {fileID: 4900000, guid: aa6e0fb437a249945befb8223fa85ef1, type: 3}
+  - image: {fileID: 2800000, guid: cda806cad3b0cd0478adb1f57030e339, type: 3}
+    referencePose: {fileID: 4900000, guid: 88219607a6123fe419d05a07a203834c, type: 3}
+  - image: {fileID: 2800000, guid: 1486187d78217d045985a0e9c8a4f585, type: 3}
+    referencePose: {fileID: 4900000, guid: 6cbc9f23050b17a45a36bd6966552d55, type: 3}
+  - image: {fileID: 2800000, guid: 3db95343e269dae4e8dbd7f8809798ff, type: 3}
+    referencePose: {fileID: 4900000, guid: ed1d04221c1e18f45ad1c836dd737b51, type: 3}
+  - image: {fileID: 2800000, guid: 3ce6caf23c6f476438d8355283ce0077, type: 3}
+    referencePose: {fileID: 4900000, guid: 5372e1538bf576345922449a0bf56e5d, type: 3}
+  - image: {fileID: 2800000, guid: 47b64cf7f41830142a61566c0495d2f1, type: 3}
+    referencePose: {fileID: 4900000, guid: baa822a8fc7229943bc41e502371e637, type: 3}
+  passingScore: 70
+  challengePoseImage: {fileID: 2800000, guid: b89d4aa2146f6b2468013447c688aff8, type: 3}
+  challengeReferencePose: {fileID: 4900000, guid: e0af4df02a767f641a5d70e4c42f0548, type: 3}
   onPositionConfirmed:
+    m_PersistentCalls:
+      m_Calls: []
+  onChallengeStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  onPoseCaptured:
     m_PersistentCalls:
       m_Calls: []
 --- !u!1 &1884225562
