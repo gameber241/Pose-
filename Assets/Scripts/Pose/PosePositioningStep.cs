@@ -75,8 +75,8 @@ public sealed class PosePositioningStep : MonoBehaviour
     [SerializeField] private string preferredCameraName;
     [Tooltip("Keep disabled to match the original web app and reference-pose coordinates.")]
     [SerializeField] private bool mirrorPreview = false;
-    [Tooltip("Giữ đúng tỷ lệ camera và hiển thị toàn bộ khung hình, không kéo giãn người.")]
-    [SerializeField] private bool fitWholeCameraFrame = true;
+    [Tooltip("Giữ đúng tỷ lệ camera và phủ kín màn hình dọc; phần thừa hai bên sẽ được cắt.")]
+    [SerializeField] private bool fillCameraPreview = true;
     [SerializeField, Min(320)] private int requestedWidth = 1280;
     [SerializeField, Min(240)] private int requestedHeight = 720;
     [SerializeField, Range(1, 60)] private int requestedFps = 30;
@@ -306,13 +306,13 @@ public sealed class PosePositioningStep : MonoBehaviour
             previewAspectFitter = preview.gameObject.AddComponent<AspectRatioFitter>();
         }
 
-        previewAspectFitter.enabled = fitWholeCameraFrame;
-        if (!fitWholeCameraFrame)
+        previewAspectFitter.enabled = fillCameraPreview;
+        if (!fillCameraPreview)
         {
             return;
         }
 
-        previewAspectFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+        previewAspectFitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
         previewAspectFitter.aspectRatio =
             (float)webCamTexture.width / webCamTexture.height;
     }

@@ -615,7 +615,7 @@ MonoBehaviour:
   preview: {fileID: 1089609545}
   preferredCameraName: 
   mirrorPreview: 0
-  fitWholeCameraFrame: 1
+  fillCameraPreview: 1
   requestedWidth: 1280
   requestedHeight: 720
   requestedFps: 30
