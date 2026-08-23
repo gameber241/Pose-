@@ -650,7 +650,7 @@ public sealed class PosePositioningStep : MonoBehaviour
         DrawRectBorder(guideRect, 3f, guideColor);
 
         DrawSequenceCopy(feedRect);
-        DrawChallengePoseImage(feedRect);
+        DrawChallengePoseImage();
 
         if (latestLandmarks.Count >= LandmarkCount)
         {
@@ -1016,7 +1016,7 @@ public sealed class PosePositioningStep : MonoBehaviour
         DrawOutlinedLabel(instructionRect, instruction, instructionStyle);
     }
 
-    private void DrawChallengePoseImage(Rect feedRect)
+    private void DrawChallengePoseImage()
     {
         if (challengePoseImage == null ||
             (challengePhase != ChallengePhase.Countdown &&
@@ -1026,12 +1026,23 @@ public sealed class PosePositioningStep : MonoBehaviour
             return;
         }
 
-        float width = Mathf.Min(feedRect.width * 0.24f, 220f);
+        Rect safeArea = Screen.safeArea;
+        float margin = Mathf.Clamp(
+            Mathf.Min(Screen.width, Screen.height) * 0.025f,
+            8f,
+            28f
+        );
         float aspect = (float)challengePoseImage.height / challengePoseImage.width;
+        float width = Mathf.Min(
+            Screen.width * 0.26f,
+            Screen.height * 0.28f,
+            220f
+        );
+        width = Mathf.Min(width, (safeArea.height - margin * 2f) / aspect);
         float height = width * aspect;
         var imageRect = new Rect(
-            feedRect.xMax - width - feedRect.width * 0.035f,
-            feedRect.y + feedRect.height * 0.035f,
+            safeArea.xMax - width - margin,
+            Screen.height - safeArea.yMax + margin,
             width,
             height
         );
