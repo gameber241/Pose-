@@ -227,7 +227,6 @@ MonoBehaviour:
   sourceImages: []
   inputFolder: Images
   poseModel: {fileID: 4900000, guid: 9fb6b96bb7aa4305a5d03177507d74a2, type: 3}
-  outputFolder: DataPose
   overwriteExisting: 1
   createOnStart: 0
   minPoseDetectionConfidence: 0.3

@@ -7,6 +7,7 @@ using Mediapipe.Tasks.Vision.Core;
 using Mediapipe.Tasks.Vision.PoseLandmarker;
 using Mediapipe.Unity.Experimental;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Creates one pose JSON file for every image assigned in the Inspector.
@@ -22,8 +23,6 @@ public sealed class PoseBatchCreator : MonoBehaviour
     [SerializeField] private TextAsset poseModel;
 
     [Header("Output")]
-    [Tooltip("Folder relative to Assets. For example: PoseData")]
-    [SerializeField] private string outputFolder = "DataPose";
     [SerializeField] private bool overwriteExisting = true;
     [SerializeField] private bool createOnStart;
 
@@ -36,8 +35,12 @@ public sealed class PoseBatchCreator : MonoBehaviour
     [SerializeField, Range(0.05f, 0.3f)] private float retryConfidence = 0.1f;
     [SerializeField] private bool useGpuDelegate;
 
-    private string status = "Press Create Pose Data to process Assets/Images.";
+    private readonly HashSet<Texture2D> runtimeImages = new HashSet<Texture2D>();
+    private string inputDirectory;
+    private string outputDirectory;
+    private string status = "Chọn folder ảnh để bắt đầu.";
     private bool isProcessing;
+    private Vector2 uiScrollPosition;
 
     private void Start()
     {
@@ -71,7 +74,18 @@ public sealed class PoseBatchCreator : MonoBehaviour
 
         if (sourceImages == null || sourceImages.Count == 0)
         {
-            SetStatus($"No images found in Assets/{inputFolder}.", true);
+            SetStatus("Không tìm thấy ảnh PNG/JPG trong folder đã chọn.", true);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+        {
+            SelectOutputFolder();
+        }
+
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+        {
+            SetStatus("Đã hủy chọn folder Save.");
             return;
         }
 
@@ -261,10 +275,88 @@ public sealed class PoseBatchCreator : MonoBehaviour
 
     private string GetOutputFilePath(string poseName)
     {
-        string safeFolder = string.IsNullOrWhiteSpace(outputFolder)
-            ? "DataPose"
-            : outputFolder.Trim().Trim('/', '\\');
-        return Path.Combine(Application.dataPath, safeFolder, $"{poseName}.json");
+        return Path.Combine(outputDirectory, $"{poseName}.json");
+    }
+
+    public void SelectInputFolder()
+    {
+        string selectedFolder = NativeFolderDialog.Open("Chọn folder ảnh pose");
+        if (string.IsNullOrWhiteSpace(selectedFolder))
+        {
+            SetStatus("Đã hủy chọn folder ảnh.");
+            return;
+        }
+
+        LoadImagesFromDirectory(selectedFolder);
+    }
+
+    public void SelectOutputFolder()
+    {
+        string selectedFolder = NativeFolderDialog.Open("Chọn folder Save");
+        if (string.IsNullOrWhiteSpace(selectedFolder))
+        {
+            return;
+        }
+
+        outputDirectory = selectedFolder;
+        SetStatus($"Folder Save: {outputDirectory}");
+    }
+
+    private void LoadImagesFromDirectory(string directory)
+    {
+        ReleaseRuntimeImages();
+        sourceImages.Clear();
+
+        string[] files = Directory.GetFiles(directory, "*.*", SearchOption.TopDirectoryOnly);
+        Array.Sort(files, CompareImagePaths);
+
+        foreach (string file in files)
+        {
+            string extension = Path.GetExtension(file);
+            if (!extension.Equals(".png", StringComparison.OrdinalIgnoreCase) &&
+                !extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) &&
+                !extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            try
+            {
+                var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false)
+                {
+                    name = Path.GetFileNameWithoutExtension(file)
+                };
+                if (!ImageConversion.LoadImage(texture, File.ReadAllBytes(file), false))
+                {
+                    Destroy(texture);
+                    continue;
+                }
+
+                sourceImages.Add(texture);
+                runtimeImages.Add(texture);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"Không đọc được ảnh {file}: {exception.Message}", this);
+            }
+        }
+
+        inputDirectory = directory;
+        outputDirectory = string.Empty;
+        SetStatus($"Đã nạp {sourceImages.Count} ảnh từ {directory}.");
+    }
+
+    private static int CompareImagePaths(string left, string right)
+    {
+        string leftName = Path.GetFileNameWithoutExtension(left);
+        string rightName = Path.GetFileNameWithoutExtension(right);
+        if (int.TryParse(leftName, out int leftNumber) &&
+            int.TryParse(rightName, out int rightNumber))
+        {
+            return leftNumber.CompareTo(rightNumber);
+        }
+
+        return string.Compare(leftName, rightName, StringComparison.OrdinalIgnoreCase);
     }
 
     [ContextMenu("Load Images From Input Folder")]
@@ -276,6 +368,7 @@ public sealed class PoseBatchCreator : MonoBehaviour
             : inputFolder.Trim().Trim('/', '\\');
         string assetFolder = $"Assets/{safeFolder}";
 
+        ReleaseRuntimeImages();
         sourceImages.Clear();
         string[] imageGuids = UnityEditor.AssetDatabase.FindAssets("t:Texture2D", new[] { assetFolder });
         foreach (string guid in imageGuids)
@@ -306,7 +399,10 @@ public sealed class PoseBatchCreator : MonoBehaviour
 
         if (sourceImages.Count == 0)
         {
-            LoadImagesFromInputFolder();
+            if (!string.IsNullOrWhiteSpace(inputDirectory))
+            {
+                LoadImagesFromDirectory(inputDirectory);
+            }
         }
     }
 
@@ -329,18 +425,68 @@ public sealed class PoseBatchCreator : MonoBehaviour
 
     private void OnGUI()
     {
-        const float width = 520f;
-        GUILayout.BeginArea(new UnityEngine.Rect(20f, 20f, width, 170f), GUI.skin.box);
-        GUILayout.Label("POSE DATA BATCH CREATOR");
-        GUILayout.Label($"Input: Assets/{inputFolder} ({(sourceImages == null ? 0 : sourceImages.Count)} images)");
-        GUILayout.Label($"Output: Assets/{outputFolder}");
+        const float uiScale = 1.5f;
+        float width = Mathf.Min(820f * uiScale, Mathf.Max(320f, Screen.width - 40f));
+        float height = Mathf.Min(500f * uiScale, Mathf.Max(390f, Screen.height - 40f));
+        var area = new UnityEngine.Rect(
+            (Screen.width - width) * 0.5f,
+            (Screen.height - height) * 0.5f,
+            width,
+            height);
+        int previousLabelSize = GUI.skin.label.fontSize;
+        int previousButtonSize = GUI.skin.button.fontSize;
+        float previousLabelFixedHeight = GUI.skin.label.fixedHeight;
+        bool previousLabelWrap = GUI.skin.label.wordWrap;
+        GUI.skin.label.fontSize = Mathf.RoundToInt(18f * uiScale);
+        GUI.skin.label.fixedHeight = 32f * uiScale;
+        GUI.skin.label.wordWrap = true;
+        GUI.skin.button.fontSize = Mathf.RoundToInt(18f * uiScale);
+        GUILayout.BeginArea(area, GUI.skin.box);
+        uiScrollPosition = GUILayout.BeginScrollView(uiScrollPosition);
+        GUILayout.Label("TẠO DATA POSE");
+        GUILayout.Label($"Ảnh: {(string.IsNullOrWhiteSpace(inputDirectory) ? "Chưa chọn" : inputDirectory)}");
+        GUILayout.Label($"Số ảnh: {(sourceImages == null ? 0 : sourceImages.Count)}");
+        GUILayout.Label($"Save: {(string.IsNullOrWhiteSpace(outputDirectory) ? "Sẽ chọn khi bấm Generate" : outputDirectory)}");
+        GUILayout.Label("Output chỉ gồm các file JSON pose.");
         GUILayout.Label(status);
-        GUI.enabled = !isProcessing;
-        if (GUILayout.Button("Create Pose Data", GUILayout.Height(36f)))
+        bool previousEnabled = GUI.enabled;
+        GUI.enabled = previousEnabled && !isProcessing;
+        if (GUILayout.Button("Chọn Folder Ảnh", GUILayout.Height(52f * uiScale)))
+        {
+            SelectInputFolder();
+        }
+        if (GUILayout.Button("Generate", GUILayout.Height(58f * uiScale)))
         {
             CreateAllPoseData();
         }
-        GUI.enabled = true;
+        if (GUILayout.Button("Về Lobby", GUILayout.Height(48f * uiScale)))
+        {
+            SceneManager.LoadScene("Lobby");
+        }
+        GUILayout.EndScrollView();
+        GUI.enabled = previousEnabled;
         GUILayout.EndArea();
+        GUI.skin.label.fontSize = previousLabelSize;
+        GUI.skin.label.fixedHeight = previousLabelFixedHeight;
+        GUI.skin.label.wordWrap = previousLabelWrap;
+        GUI.skin.button.fontSize = previousButtonSize;
+    }
+
+    private void ReleaseRuntimeImages()
+    {
+        foreach (Texture2D image in runtimeImages)
+        {
+            if (image != null)
+            {
+                Destroy(image);
+            }
+        }
+
+        runtimeImages.Clear();
+    }
+
+    private void OnDestroy()
+    {
+        ReleaseRuntimeImages();
     }
 }

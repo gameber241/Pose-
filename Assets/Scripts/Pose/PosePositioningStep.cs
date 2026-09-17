@@ -165,6 +165,99 @@ public sealed class PosePositioningStep : MonoBehaviour
         ? 1f
         : Mathf.Clamp01(holdTimer / requiredHoldSeconds);
 
+    public int ConfigureReferencePoses(
+        IReadOnlyDictionary<string, TextAsset> referencePoses)
+    {
+        if (challengePoses == null)
+        {
+            challengePoses = new List<PoseChallengeEntry>();
+        }
+
+        var configuredPoses = new List<PoseChallengeEntry>();
+        if (referencePoses != null)
+        {
+            foreach (PoseChallengeEntry entry in challengePoses)
+            {
+                if (entry?.image == null ||
+                    !referencePoses.TryGetValue(entry.image.name, out TextAsset referencePose))
+                {
+                    continue;
+                }
+
+                configuredPoses.Add(new PoseChallengeEntry
+                {
+                    image = entry.image,
+                    referencePose = referencePose
+                });
+            }
+        }
+
+        if (configuredPoses.Count == 0)
+        {
+            return 0;
+        }
+
+        challengePoses = configuredPoses;
+        challengePoseImage = null;
+        challengeReferencePose = null;
+        currentPoseIndex = 0;
+        completedPoseCount = 0;
+        successfulPoseCount = 0;
+        LastCompareResult = null;
+        return challengePoses.Count;
+    }
+
+    public int ConfigureReferencePosesInOrder(
+        IReadOnlyList<TextAsset> referencePoses)
+    {
+        if (challengePoses == null || referencePoses == null)
+        {
+            return 0;
+        }
+
+        var configuredPoses = new List<PoseChallengeEntry>();
+        int referenceIndex = 0;
+        foreach (PoseChallengeEntry entry in challengePoses)
+        {
+            if (entry?.image == null)
+            {
+                continue;
+            }
+
+            if (referenceIndex >= referencePoses.Count)
+            {
+                break;
+            }
+
+            TextAsset referencePose = referencePoses[referenceIndex];
+            referenceIndex++;
+            if (referencePose == null)
+            {
+                continue;
+            }
+
+            configuredPoses.Add(new PoseChallengeEntry
+            {
+                image = entry.image,
+                referencePose = referencePose
+            });
+        }
+
+        if (configuredPoses.Count == 0)
+        {
+            return 0;
+        }
+
+        challengePoses = configuredPoses;
+        challengePoseImage = null;
+        challengeReferencePose = null;
+        currentPoseIndex = 0;
+        completedPoseCount = 0;
+        successfulPoseCount = 0;
+        LastCompareResult = null;
+        return challengePoses.Count;
+    }
+
     private IEnumerator Start()
     {
         yield return InitializeAndRun();
@@ -657,18 +750,18 @@ public sealed class PosePositioningStep : MonoBehaviour
             DrawSkeleton(feedRect);
         }
 
-        float panelWidth = Mathf.Min(feedRect.width * 0.9f, 720f);
+        float panelWidth = Mathf.Min(feedRect.width * 0.94f, 960f);
         var statusRect = new Rect(
             feedRect.center.x - panelWidth * 0.5f,
-            feedRect.yMax - 92f,
+            feedRect.yMax - 130f,
             panelWidth,
-            54f
+            82f
         );
 
         var style = new GUIStyle(GUI.skin.box)
         {
             alignment = TextAnchor.MiddleCenter,
-            fontSize = Mathf.Clamp(Screen.height / 35, 18, 34),
+            fontSize = Mathf.Clamp(Screen.height / 26, 24, 46),
             fontStyle = FontStyle.Bold,
             wordWrap = true
         };
@@ -678,9 +771,9 @@ public sealed class PosePositioningStep : MonoBehaviour
         {
             Rect progressBackground = new Rect(
                 statusRect.x,
-                statusRect.yMax + 6f,
+                statusRect.yMax + 10f,
                 statusRect.width,
-                10f
+                16f
             );
             GUI.color = new Color(0f, 0f, 0f, 0.65f);
             GUI.DrawTexture(progressBackground, Texture2D.whiteTexture);
@@ -876,17 +969,17 @@ public sealed class PosePositioningStep : MonoBehaviour
 
     private void DrawSequenceCopy(Rect feedRect)
     {
-        float titleWidth = Mathf.Min(feedRect.width * 0.88f, 760f);
+        float titleWidth = Mathf.Min(feedRect.width * 0.94f, 1020f);
         var titleRect = new Rect(
             feedRect.center.x - titleWidth * 0.5f,
             feedRect.y + feedRect.height * 0.08f,
             titleWidth,
-            Mathf.Max(52f, feedRect.height * 0.12f));
+            Mathf.Max(78f, feedRect.height * 0.14f));
 
         var titleStyle = new GUIStyle(GUI.skin.label)
         {
             alignment = TextAnchor.MiddleCenter,
-            fontSize = Mathf.Clamp(Screen.height / 18, 30, 64),
+            fontSize = Mathf.Clamp(Screen.height / 14, 42, 82),
             fontStyle = FontStyle.Bold
         };
         titleStyle.normal.textColor = Color.white;
@@ -927,15 +1020,15 @@ public sealed class PosePositioningStep : MonoBehaviour
 
         var instructionRect = new Rect(
             feedRect.center.x - titleWidth * 0.5f,
-            titleRect.yMax + 4f,
+            titleRect.yMax + 8f,
             titleWidth,
-            Mathf.Max(70f, feedRect.height * 0.14f));
+            Mathf.Max(105f, feedRect.height * 0.18f));
         var instructionStyle = new GUIStyle(GUI.skin.label)
         {
             alignment = TextAnchor.MiddleCenter,
             fontSize = challengePhase == ChallengePhase.Countdown
-                ? Mathf.Clamp(Screen.height / 8, 72, 150)
-                : Mathf.Clamp(Screen.height / 24, 24, 52),
+                ? Mathf.Clamp(Screen.height / 6, 96, 190)
+                : Mathf.Clamp(Screen.height / 18, 34, 72),
             fontStyle = FontStyle.Bold,
             wordWrap = true
         };
@@ -949,18 +1042,18 @@ public sealed class PosePositioningStep : MonoBehaviour
 
     private void DrawStepOneCopy(Rect feedRect)
     {
-        float titleWidth = Mathf.Min(feedRect.width * 0.88f, 760f);
+        float titleWidth = Mathf.Min(feedRect.width * 0.94f, 1020f);
         var titleRect = new Rect(
             feedRect.center.x - titleWidth * 0.5f,
             feedRect.y + feedRect.height * 0.08f,
             titleWidth,
-            Mathf.Max(52f, feedRect.height * 0.12f)
+            Mathf.Max(78f, feedRect.height * 0.14f)
         );
 
         var titleStyle = new GUIStyle(GUI.skin.label)
         {
             alignment = TextAnchor.MiddleCenter,
-            fontSize = Mathf.Clamp(Screen.height / 18, 30, 64),
+            fontSize = Mathf.Clamp(Screen.height / 14, 42, 82),
             fontStyle = FontStyle.Bold
         };
         titleStyle.normal.textColor = Color.white;
@@ -995,16 +1088,16 @@ public sealed class PosePositioningStep : MonoBehaviour
         }
         var instructionRect = new Rect(
             feedRect.center.x - titleWidth * 0.5f,
-            titleRect.yMax + 4f,
+            titleRect.yMax + 8f,
             titleWidth,
-            Mathf.Max(70f, feedRect.height * 0.14f)
+            Mathf.Max(105f, feedRect.height * 0.18f)
         );
         var instructionStyle = new GUIStyle(GUI.skin.label)
         {
             alignment = TextAnchor.MiddleCenter,
             fontSize = challengePhase == ChallengePhase.Countdown
-                ? Mathf.Clamp(Screen.height / 8, 72, 150)
-                : Mathf.Clamp(Screen.height / 24, 24, 52),
+                ? Mathf.Clamp(Screen.height / 6, 96, 190)
+                : Mathf.Clamp(Screen.height / 18, 34, 72),
             fontStyle = FontStyle.Bold,
             wordWrap = true
         };
@@ -1034,9 +1127,9 @@ public sealed class PosePositioningStep : MonoBehaviour
         );
         float aspect = (float)challengePoseImage.height / challengePoseImage.width;
         float width = Mathf.Min(
-            Screen.width * 0.26f,
-            Screen.height * 0.28f,
-            220f
+            Screen.width * 0.34f,
+            Screen.height * 0.38f,
+            330f
         );
         width = Mathf.Min(width, (safeArea.height - margin * 2f) / aspect);
         float height = width * aspect;
